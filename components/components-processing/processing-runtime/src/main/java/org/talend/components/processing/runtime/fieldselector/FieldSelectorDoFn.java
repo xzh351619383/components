@@ -29,6 +29,7 @@ import org.talend.components.processing.definition.fieldselector.FieldSelectorPr
 import org.talend.components.processing.definition.fieldselector.SelectorProperties;
 
 import wandou.avpath.Evaluator;
+import wandou.avpath.Parser;
 
 public class FieldSelectorDoFn extends DoFn<IndexedRecord, IndexedRecord> {
 
@@ -36,21 +37,34 @@ public class FieldSelectorDoFn extends DoFn<IndexedRecord, IndexedRecord> {
 
     private transient Schema outputSchema = null;
 
+    private transient Map<String, Parser.PathSyntax> selectorPath = null;
+
     @Setup
     public void setup() throws Exception {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void selectorPath(ProcessContext context) {
         Map<String, Object> selectedFields = new HashMap<>();
         List<Schema.Field> fieldSchemas = new ArrayList<>();
+        if (selectorPath == null) {
+            selectorPath = new HashMap();
+        }
 
         for (SelectorProperties selector : properties.selectors.subProperties) {
             String path = selector.path.getValue();
             String field = selector.field.getValue();
             if (StringUtils.isNotEmpty(field) && StringUtils.isNotEmpty(path)) {
+                if (!selectorPath.containsKey(path)) {
+                    if (path.startsWith(".")) {
+                        selectorPath.put(path, new Parser().parse(path));
+                    } else {
+                        selectorPath.put(path, new Parser().parse("." + path));
+                    }
+                }
                 // Extract field from the input
-                List<Evaluator.Ctx> avPathContexts = FieldSelectorUtil.getInputFields(context.element(), path);
+                List<Evaluator.Ctx> avPathContexts =
+                        FieldSelectorUtil.getInputFields(context.element(), selectorPath.get(path));
 
                 if (outputSchema == null) {
                     if (avPathContexts.isEmpty()) {
@@ -118,7 +132,10 @@ public class FieldSelectorDoFn extends DoFn<IndexedRecord, IndexedRecord> {
      */
     private Field inferSchema(IndexedRecord input, String aVPath, String field) {
         String schemaPath = FieldSelectorUtil.changeAVPathToSchemaRetriever(aVPath);
-        List<Evaluator.Ctx> avPathContextsForSchema = FieldSelectorUtil.getInputFields(input, schemaPath);
+        if (!selectorPath.containsKey(schemaPath)) {
+                selectorPath.put(schemaPath, new Parser().parse(schemaPath));
+        }
+        List<Evaluator.Ctx> avPathContextsForSchema = FieldSelectorUtil.getInputFields(input, selectorPath.get(schemaPath));
         if (!avPathContextsForSchema.isEmpty()) {
             return retrieveSchema(avPathContextsForSchema, aVPath, field);
         } else {

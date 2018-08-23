@@ -27,6 +27,8 @@ import org.talend.components.processing.runtime.SampleAvpathSchemas;
 import org.talend.daikon.exception.TalendRuntimeException;
 
 import wandou.avpath.Evaluator;
+import wandou.avpath.Parser;
+import wandou.avpath.Parser.PathSyntax;
 
 public class FieldSelectorUtilTest {
 
@@ -111,37 +113,26 @@ public class FieldSelectorUtilTest {
 
     @Test
     public void testGetInputFields() throws Exception {
-        assertEquals(0, FieldSelectorUtil.getInputFields(inputHierarchical, "NOTHING").size());
-
-        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, "id").get(0).value());
-        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, ".{.id == 1}.id").get(0).value());
-        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, ".id").get(0).value());
-        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, "a1.id").get(0).value());
-        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, ".a1.id").get(0).value());
-        assertEquals(5, (int) FieldSelectorUtil.getInputFields(inputHierarchical, "a1.a2.id").get(0).value());
-        assertEquals(5, (int) FieldSelectorUtil.getInputFields(inputHierarchical, ".a1.a2.id").get(0).value());
+        assertEquals(0, FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".NOTHING")).size());
+        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".{.id == 1}.id")).get(0).value());
+        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".id")).get(0).value());
+        assertEquals(1, (int) FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".a1.id")).get(0).value());
+        assertEquals(5, (int) FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".a1.a2.id")).get(0).value());
         assertEquals("Q2G5V64PQQ",
-                (String) FieldSelectorUtil.getInputFields(inputHierarchical, "a1.a2.name").get(0).value());
-        assertEquals("Q2G5V64PQQ",
-                (String) FieldSelectorUtil.getInputFields(inputHierarchical, ".a1.a2.name").get(0).value());
-    }
-
-    @Test(expected = TalendRuntimeException.class)
-    public void testGetInputFieldsInvalid() throws TalendRuntimeException {
-        FieldSelectorUtil.getInputFields(inputHierarchical, "NOPµf,sgldsf**///E");
+                (String) FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".a1.a2.name")).get(0).value());
     }
 
     @Test
     public void testExtractValuesFromContextSimpleValue() throws Exception {
 
-        List<Evaluator.Ctx> ctxList = FieldSelectorUtil.getInputFields(inputHierarchical, "id");
-        Object id = FieldSelectorUtil.extractValuesFromContext(ctxList, "id");
+        List<Evaluator.Ctx> ctxList = FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".id"));
+        Object id = FieldSelectorUtil.extractValuesFromContext(ctxList, ".id");
         assertEquals(1, (int) id);
     }
     
     @Test
     public void testExtractValuesFromContextList() throws Exception {
-        List<Evaluator.Ctx> ctxList = FieldSelectorUtil.getInputFields(inputHierarchical, ".a1{.id == 1}.id");
+        List<Evaluator.Ctx> ctxList = FieldSelectorUtil.getInputFields(inputHierarchical, new Parser().parse(".a1{.id == 1}.id"));
         List<Object> idList = (List<Object>) FieldSelectorUtil.extractValuesFromContext(ctxList, ".a1{.id == 1}.id");
         assertEquals(1, idList.size());
         assertEquals(1, (int) idList.get(0));

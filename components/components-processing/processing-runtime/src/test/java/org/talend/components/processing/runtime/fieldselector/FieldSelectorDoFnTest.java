@@ -309,7 +309,7 @@ public class FieldSelectorDoFnTest {
         assertEquals(0, outputs.size());
     }
 
-    @Test(expected = TalendRuntimeException.class)
+    @Test(expected = wandou.avpath.Parser.AvroPathException.class)
     public void testHierarchicalSyntaxError() throws Exception {
         FieldSelectorProperties properties = addSelector(null, "id", "asdf&*{.\\\\t");
 

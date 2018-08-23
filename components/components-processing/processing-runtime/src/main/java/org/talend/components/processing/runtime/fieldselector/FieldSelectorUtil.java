@@ -28,11 +28,12 @@ import java.util.regex.Matcher;
 import scala.collection.JavaConversions;
 import scala.util.Try;
 import wandou.avpath.Evaluator;
+import wandou.avpath.Parser;
 
 public class FieldSelectorUtil {
 
     /**
-     *  Looking for one of these pattern: [*] [:-18] [:18] [-18:] [18:] [-18:-17] [18:19]
+     * Looking for one of these pattern: [*] [:-18] [:18] [-18:] [18:] [-18:-17] [18:19]
      */
     static Pattern pattern = Pattern.compile("\\[(\\*|:-?\\d+|-?\\d+:|-?\\d+:-?\\d+)\\]");
 
@@ -81,8 +82,7 @@ public class FieldSelectorUtil {
      * @return true if the AVPath contains mention to an array, a predicate or a deep location
      */
     public static boolean canRetrieveMultipleElements(String path) {
-        Matcher matcher = pattern.matcher(path);
-        return path.contains("{") || path.contains("..") || matcher.find();
+        return path.contains("{") || path.contains("..") || pattern.matcher(path).find();
     }
 
     /**
@@ -93,6 +93,12 @@ public class FieldSelectorUtil {
      * @return true if the AVPath contains mention to an array, a predicate or a deep location
      */
     public static String changeAVPathToSchemaRetriever(String path) {
+        // Adapt non-avpath syntax to avpath.
+        // TODO: This should probably not be automatic, use the actual syntax.
+
+        if (!path.startsWith(".")) {
+            path = "." + path;
+        }
         return path.replaceAll("\\[[^\\]]*\\]", "\\[\\*]").replaceAll("\\{[^\\}]*\\}", "");
     }
 
@@ -100,16 +106,13 @@ public class FieldSelectorUtil {
      * Use an AVPath to extract data from an indexed record
      * 
      * @param record an indexed record
-     * @param avPath the path to elements to extract (can be one or multiples elements)
+     * @param jsPath the path to elements to extract (can be one or multiples elements) as a Parser.PathSyntax
      * @return the extracted data as a list.
      */
-    public static List<Evaluator.Ctx> getInputFields(IndexedRecord record, String avPath) {
-        // Adapt non-avpath syntax to avpath.
-        // TODO: This should probably not be automatic, use the actual syntax.
-        if (!avPath.startsWith("."))
-            avPath = "." + avPath;
+    public static List<Evaluator.Ctx> getInputFields(IndexedRecord record, Parser.PathSyntax jsPath) {
+
         Try<scala.collection.immutable.List<Evaluator.Ctx>> result =
-                wandou.avpath.package$.MODULE$.select(record, avPath);
+                wandou.avpath.package$.MODULE$.select(jsPath, record);
         List<Evaluator.Ctx> results = new ArrayList<Evaluator.Ctx>();
         if (result.isSuccess()) {
             for (Evaluator.Ctx ctx : JavaConversions.asJavaCollection(result.get())) {
@@ -117,7 +120,7 @@ public class FieldSelectorUtil {
             }
         } else {
             // Evaluating the expression failed, and we can handle the exception.
-            throw ProcessingErrorCode.createAvpathSyntaxError(result.failed().get(), avPath, -1);
+            throw ProcessingErrorCode.createAvpathSyntaxError(result.failed().get(), jsPath.path(), -1);
         }
         return results;
     }
