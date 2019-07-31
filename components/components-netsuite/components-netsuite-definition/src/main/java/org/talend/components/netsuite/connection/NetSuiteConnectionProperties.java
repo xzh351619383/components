@@ -33,6 +33,7 @@ import org.talend.components.netsuite.NetSuiteComponentDefinition;
 import org.talend.components.netsuite.NetSuiteProvideConnectionProperties;
 import org.talend.components.netsuite.NetSuiteRuntime;
 import org.talend.components.netsuite.NetSuiteVersion;
+import org.talend.components.netsuite.input.NetSuiteInputProperties;
 import org.talend.daikon.java8.Function;
 import org.talend.daikon.properties.PresentationItem;
 import org.talend.daikon.properties.ValidationResult;
@@ -217,7 +218,14 @@ public class NetSuiteConnectionProperties extends ComponentPropertiesImpl
      * @return referenced connection properties or {@code null}
      */
     public NetSuiteConnectionProperties getReferencedConnectionProperties() {
-        NetSuiteConnectionProperties refProps = referencedComponent.getReference();
+        NetSuiteConnectionProperties refProps;
+        Object obj = referencedComponent.getReference();
+        if (obj instanceof NetSuiteInputProperties) {
+            refProps = ((NetSuiteInputProperties) obj).connection;
+        } else {
+            refProps = (NetSuiteConnectionProperties) obj;
+        }
+
         if (refProps != null) {
             return refProps;
         }
@@ -269,7 +277,7 @@ public class NetSuiteConnectionProperties extends ComponentPropertiesImpl
     public NetSuiteRuntime.Context getDesignTimeContext() {
         // If the component refers to another component
         // then we should use design-time context from referenced connection properties.
-        NetSuiteConnectionProperties refProps = referencedComponent.getReference();
+        NetSuiteConnectionProperties refProps = getReferencedConnectionProperties();
         if (refProps != null) {
             return refProps.getDesignTimeContext();
         }
